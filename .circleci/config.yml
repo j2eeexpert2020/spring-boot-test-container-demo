@@ -12,18 +12,38 @@ jobs:
     environment:
       TESTCONTAINERS_RYUK_DISABLED: "true"
       TESTCONTAINERS_CHECKS_DISABLE: "true"
-      USE_TESTCONTAINERS: "true"
     steps:
       - checkout
-      - setup_remote_docker:  # Removed explicit version to avoid rejection
+
+      - setup_remote_docker:
           docker_layer_caching: true
+
       - run:
           name: Run Tests with Testcontainers
-          command: mvn clean verify -DtestOutputDirectory=target/test-reports
+          command: |
+            mvn clean verify \
+              -DtestOutputDirectory=target/surefire-reports \
+              -Dsurefire.useFile=false \
+              -Dlogging.level.org.testcontainers=DEBUG \
+              -Dspring.test.database.replace=NONE
+
+      - run:
+          name: Ensure Test Reports Exist
+          command: |
+            mkdir -p target/surefire-reports
+            if [ -d "target/surefire-reports" ]; then
+              echo "Test reports directory exists."
+              ls -la target/surefire-reports
+            else
+              echo "No test reports found! Check Maven logs."
+              exit 1
+            fi
+
       - store_test_results:
-          path: target/test-reports
+          path: target/surefire-reports
+
       - store_artifacts:
-          path: target/test-reports
+          path: target/surefire-reports
 
 workflows:
   version: 2
