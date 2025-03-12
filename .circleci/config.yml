@@ -10,10 +10,11 @@ jobs:
   test-with-testcontainers:
     executor: docker-executor
     environment:
-      TESTCONTAINERS_RYUK_DISABLED: "true"  # Prevents Ryuk-related failures
-      TESTCONTAINERS_CHECKS_DISABLE: "true" # Speeds up startup by skipping extra checks
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+      TESTCONTAINERS_CHECKS_DISABLE: "true"
+      USE_TESTCONTAINERS: "true"
     steps:
-      - checkout  # Fetches the latest code
+      - checkout  # Fetch latest code
 
       - setup_remote_docker:  # Ensures Testcontainers can run containers inside CircleCI
           docker_layer_caching: true
@@ -21,7 +22,10 @@ jobs:
       - run:
           name: Run Unit and Integration Tests with Testcontainers
           command: |
-            mvn surefire-report:report
+            mvn clean verify \
+              -Dspring.test.database.replace=NONE \
+              -Dlogging.level.org.testcontainers=DEBUG \
+              -Dsurefire.useFile=false
 
       # Collect and store test results for CircleCI
       - run:
@@ -40,12 +44,12 @@ jobs:
           path: ~/test-results
           destination: test-results
 
-      # Ensure HTML reports are accessible
+      # Ensure full HTML reports with assets (CSS, JS, Images)
       - run:
-          name: Save Test Reports (HTML)
+          name: Save Complete Test Reports (HTML, CSS, Images)
           command: |
             mkdir -p ~/test-reports/
-            find . -type f -regex ".*/target/site/.*html" -exec cp {} ~/test-reports/ \;
+            cp -r target/site/* ~/test-reports/  # Copies all files & folders from target/site/
           when: always
 
       - store_artifacts:
