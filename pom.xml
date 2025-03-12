@@ -102,15 +102,12 @@
                     <reportsDirectory>${project.build.directory}/surefire-reports</reportsDirectory>
                     <includes>
                         <include>**/*Test.java</include>
+                         <include>**/*TestContainer.java</include>
                     </includes>
-                    <excludes>
-                        <exclude>**/*IT.java</exclude>
-                        <exclude>**/*IntegrationTest.java</exclude>
-                    </excludes>
                 </configuration>
             </plugin>
 
-            <!-- Failsafe Plugin for Integration Tests -->
+            <!-- Failsafe Plugin for Integration Tests 
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-failsafe-plugin</artifactId>
@@ -132,6 +129,7 @@
                     </includes>
                 </configuration>
             </plugin>
+            -->
 
             <!-- Surefire Report Plugin (Generates Test Reports) -->
             <plugin>

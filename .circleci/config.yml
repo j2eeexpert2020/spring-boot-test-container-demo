@@ -3,47 +3,54 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/openjdk:17.0
+      - image: cimg/openjdk:17.0  # Java 17 environment
     resource_class: medium
 
 jobs:
   test-with-testcontainers:
     executor: docker-executor
     environment:
-      TESTCONTAINERS_RYUK_DISABLED: "true"
-      TESTCONTAINERS_CHECKS_DISABLE: "true"
+      TESTCONTAINERS_RYUK_DISABLED: "true"  # Prevents Ryuk-related failures
+      TESTCONTAINERS_CHECKS_DISABLE: "true" # Speeds up startup by skipping extra checks
     steps:
-      - checkout
+      - checkout  # Fetches the latest code
 
-      - setup_remote_docker:
+      - setup_remote_docker:  # Ensures Testcontainers can run containers inside CircleCI
           docker_layer_caching: true
 
       - run:
-          name: Run Tests with Testcontainers
+          name: Run Unit and Integration Tests with Testcontainers
           command: |
-            mvn clean verify \
-              -DtestOutputDirectory=target/surefire-reports \
-              -Dsurefire.useFile=false \
-              -Dlogging.level.org.testcontainers=DEBUG \
-              -Dspring.test.database.replace=NONE
+            mvn surefire-report:report
 
+      # Collect and store test results for CircleCI
       - run:
-          name: Ensure Test Reports Exist
+          name: Save Test Results (XML)
           command: |
-            mkdir -p target/surefire-reports
-            if [ -d "target/surefire-reports" ]; then
-              echo "Test reports directory exists."
-              ls -la target/surefire-reports
-            else
-              echo "No test reports found! Check Maven logs."
-              exit 1
-            fi
+            mkdir -p ~/test-results/junit/
+            find . -type f -regex ".*/target/surefire-reports/.*xml" -exec cp {} ~/test-results/junit/ \;
+            find . -type f -regex ".*/target/failsafe-reports/.*xml" -exec cp {} ~/test-results/junit/ \;
+          when: always
 
       - store_test_results:
-          path: target/surefire-reports
+          path: ~/test-results
+
+      # Store test reports (JUnit XML) as artifacts for debugging
+      - store_artifacts:
+          path: ~/test-results
+          destination: test-results
+
+      # Ensure HTML reports are accessible
+      - run:
+          name: Save Test Reports (HTML)
+          command: |
+            mkdir -p ~/test-reports/
+            find . -type f -regex ".*/target/site/.*html" -exec cp {} ~/test-reports/ \;
+          when: always
 
       - store_artifacts:
-          path: target/surefire-reports
+          path: ~/test-reports
+          destination: test-reports
 
 workflows:
   version: 2
