@@ -3,47 +3,31 @@ version: 2.1
 executors:
   docker-executor:
     docker:
-      - image: cimg/openjdk:17.0  # Use a stable Java 17 image
+      - image: cimg/openjdk:17.0
     resource_class: medium
 
 jobs:
-  run-tests:
+  test-with-testcontainers:
     executor: docker-executor
     environment:
       TESTCONTAINERS_RYUK_DISABLED: "true"
       TESTCONTAINERS_CHECKS_DISABLE: "true"
+      USE_TESTCONTAINERS: "true"
     steps:
       - checkout
-      - setup_remote_docker
-
-      # Conditional setup for Docker Compose
+      - setup_remote_docker:
+          version: 20.10.18
+          docker_layer_caching: true
       - run:
-          name: Conditionally Start Dependencies
-          command: |
-            if [ "$USE_TESTCONTAINERS" = "true" ]; then
-              echo "Using Testcontainers, skipping docker-compose setup"
-            else
-              echo "Starting services with Docker Compose..."
-              docker-compose up -d
-              sleep 120  # Wait for services to initialize
-            fi
-
-      # Run the tests
-      - run:
-          name: Run Tests
-          command: mvn clean verify
-
-      # Conditional cleanup
-      - run:
-          name: Stop Docker Compose Services (if used)
-          command: |
-            if [ "$USE_TESTCONTAINERS" != "true" ]; then
-              docker-compose down
-            fi
+          name: Run Tests with Testcontainers
+          command: mvn clean verify -DtestOutputDirectory=target/test-reports
+      - store_test_results:
+          path: target/test-reports
+      - store_artifacts:
+          path: target/test-reports
 
 workflows:
   version: 2
   test-flow:
     jobs:
-      - run-tests:
-          context: test-environment
+      - test-with-testcontainers
