@@ -1,40 +1,49 @@
-# This config was automatically generated from your source code
-# Stacks detected: deps:java:.
 version: 2.1
-jobs:
-  test-java:
+
+executors:
+  docker-executor:
     docker:
-      - image: cimg/openjdk:17.0
+      - image: cimg/openjdk:17.0  # Use a stable Java 17 image
+    resource_class: medium
+
+jobs:
+  run-tests:
+    executor: docker-executor
+    environment:
+      TESTCONTAINERS_RYUK_DISABLED: "true"
+      TESTCONTAINERS_CHECKS_DISABLE: "true"
     steps:
       - checkout
+      - setup_remote_docker
+
+      # Conditional setup for Docker Compose
       - run:
-          name: Calculate cache key
-          command: |-
-            find . -name 'pom.xml' -o -name 'gradlew*' -o -name '*.gradle*' | \
-                    sort | xargs cat > /tmp/CIRCLECI_CACHE_KEY
-      - restore_cache:
-          key: cache-{{ checksum "/tmp/CIRCLECI_CACHE_KEY" }}
+          name: Conditionally Start Dependencies
+          command: |
+            if [ "$USE_TESTCONTAINERS" = "true" ]; then
+              echo "Using Testcontainers, skipping docker-compose setup"
+            else
+              echo "Starting services with Docker Compose..."
+              docker-compose up -d
+              sleep 120  # Wait for services to initialize
+            fi
+
+      # Run the tests
       - run:
-          command: mvn verify
-      - store_test_results:
-          path: target/surefire-reports
-      - save_cache:
-          key: cache-{{ checksum "/tmp/CIRCLECI_CACHE_KEY" }}
-          paths:
-            - ~/.m2/repository
-  deploy:
-    # This is an example deploy job, not actually used by the workflow
-    docker:
-      - image: cimg/base:stable
-    steps:
-      # Replace this with steps to deploy to users
+          name: Run Tests
+          command: mvn clean verify
+
+      # Conditional cleanup
       - run:
-          name: deploy
-          command: '#e.g. ./deploy.sh'
+          name: Stop Docker Compose Services (if used)
+          command: |
+            if [ "$USE_TESTCONTAINERS" != "true" ]; then
+              docker-compose down
+            fi
+
 workflows:
-  build-and-test:
+  version: 2
+  test-flow:
     jobs:
-      - test-java
-    # - deploy:
-    #     requires:
-    #       - test-java
+      - run-tests:
+          context: test-environment
