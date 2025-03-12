@@ -15,8 +15,7 @@ jobs:
       USE_TESTCONTAINERS: "true"
     steps:
       - checkout
-      - setup_remote_docker:
-          version: 20.10.18
+      - setup_remote_docker:  # Removed explicit version to avoid rejection
           docker_layer_caching: true
       - run:
           name: Run Tests with Testcontainers
